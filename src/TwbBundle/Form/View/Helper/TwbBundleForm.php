@@ -1,4 +1,4 @@
-r<?php
+<?php
 namespace TwbBundle\Form\View\Helper;
 
 use Zend\Form\View\Helper\Form;
