@@ -1,13 +1,26 @@
 <?php
-namespace TwbBundle\Form\View\Helper;
-class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements \Zend\I18n\Translator\TranslatorAwareInterface
-{
 
+namespace TwbBundle\Form\View\Helper;
+
+use Traversable;
+use InvalidArgumentException;
+use LogicException;
+use Zend\Form\ElementInterface;
+use Zend\Form\View\Helper\FormElement;
+use Zend\Form\Element\Collection;
+use Zend\Form\Factory;
+use Zend\I18n\Translator\TranslatorAwareInterface;
+use Zend\I18n\Translator\TranslatorInterface;
+use Zend\I18n\Translator\Translator;
+use TwbBundle\Options\ModuleOptions;
+use Zend\Form\Element\Button;
+
+class TwbBundleFormElement extends FormElement implements TranslatorAwareInterface
+{
     /**
      * @var string
      */
     protected static $addonFormat = '<%s class="%s">%s</%s>';
-
 
     /**
      * @var string
@@ -16,7 +29,7 @@ class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements
 
     /**
      * Translator (optional)
-     * @var \Zend\I18n\Translator\Translator
+     * @var Translator
      */
     protected $translator;
 
@@ -31,37 +44,76 @@ class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements
      * @var boolean
      */
     protected $translatorEnabled = true;
+    
+    /**
+     * Hold configurable options
+     * @var ModuleOptions 
+     */
+    protected $options;
+
+    /**
+     * Instance map to view helper
+     *
+     * @var array
+     */
+    protected $classMap = array(
+        'Zend\Form\Element\Button' => 'formbutton',
+        'Zend\Form\Element\Captcha' => 'formcaptcha',
+        'Zend\Form\Element\Csrf' => 'formhidden',
+        'Zend\Form\Element\Collection' => 'formcollection',
+        'Zend\Form\Element\DateTimeSelect' => 'formdatetimeselect',
+        'Zend\Form\Element\DateSelect' => 'formdateselect',
+        'Zend\Form\Element\MonthSelect' => 'formmonthselect',
+        'TwbBundle\Form\Element\StaticElement' => 'formStatic',
+    );
+    
+    public function __construct(ModuleOptions $options)
+    {
+        $this->options = $options;
+    }
 
     /**
      * Render an element
-     * @param \Zend\Form\ElementInterface $oElement
+     * @param ElementInterface $oElement
      * @return string
      */
-    public function render(\Zend\Form\ElementInterface $oElement)
+    public function render(ElementInterface $oElement)
     {
-        //Add form-controll class
+        // Add form-controll class
         $sElementType = $oElement->getAttribute('type');
-
-        if (!in_array($sElementType, array('file', 'checkbox', 'radio', 'submit', 'multi_checkbox', 'static', 'button', 'reset'))) {
+        if (!in_array($sElementType, $this->options->getIgnoredViewHelpers()) &&
+            !($oElement instanceof Collection)
+        ) {
             if ($sElementClass = $oElement->getAttribute('class')) {
-                if (!preg_match('/(\s|^)form-control(\s|$)/', $sElementClass)) $oElement->setAttribute('class', trim($sElementClass . ' form-control'));
-            } else $oElement->setAttribute('class', 'form-control');
+                if (!preg_match('/(\s|^)form-control(\s|$)/', $sElementClass)) {
+                    $oElement->setAttribute('class', trim($sElementClass . ' form-control'));
+                }
+            } else {
+                $oElement->setAttribute('class', 'form-control');
+            }
         }
 
-        $sMarkup = $oElement instanceof \TwbBundle\Form\Element\StaticElement ? $this->getView()->formStatic()->render($oElement) : parent::render($oElement);
+        $sMarkup = parent::render($oElement);
 
-        //Addon prepend
-        if ($aAddOnPrepend = $oElement->getOption('add-on-prepend')) $sMarkup = $this->renderAddOn($aAddOnPrepend) . $sMarkup;
+        // Addon prepend
+        if ($aAddOnPrepend = $oElement->getOption('add-on-prepend')) {
+            $sMarkup = $this->renderAddOn($aAddOnPrepend) . $sMarkup;
+        }
 
-        //Addon append
-        if ($aAddOnAppend = $oElement->getOption('add-on-append')) $sMarkup .= $this->renderAddOn($aAddOnAppend);
+        // Addon append
+        if ($aAddOnAppend = $oElement->getOption('add-on-append')) {
+            $sMarkup .= $this->renderAddOn($aAddOnAppend);
+        }
 
         if ($aAddOnAppend || $aAddOnPrepend) {
             $sSpecialClass = '';
-            //Input size
+            // Input size
             if ($sElementClass = $oElement->getAttribute('class')) {
-                if (preg_match('/(\s|^)input-lg(\s|$)/', $sElementClass)) $sSpecialClass .= ' input-group-lg';
-                elseif (preg_match('/(\s|^)input-sm(\s|$)/', $sElementClass)) $sSpecialClass .= ' input-group-sm';
+                if (preg_match('/(\s|^)input-lg(\s|$)/', $sElementClass)) {
+                    $sSpecialClass .= ' input-group-lg';
+                } elseif (preg_match('/(\s|^)input-sm(\s|$)/', $sElementClass)) {
+                    $sSpecialClass .= ' input-group-sm';
+                }
             }
             return sprintf(
                 self::$inputGroupFormat,
@@ -75,23 +127,35 @@ class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements
     /**
      * Render addo-on markup
      * @param string $aAddOnOptions
-     * @throws \InvalidArgumentException
-     * @throws \LogicException
+     * @throws InvalidArgumentException
+     * @throws LogicException
      * @return string
      */
     protected function renderAddOn($aAddOnOptions)
     {
-        if (empty($aAddOnOptions)) throw new \InvalidArgumentException('Addon options are empty');
-        if ($aAddOnOptions instanceof \Zend\Form\ElementInterface) $aAddOnOptions = array('element' => $aAddOnOptions);
-        elseif (is_scalar($aAddOnOptions)) $aAddOnOptions = array('text' => $aAddOnOptions);
-        elseif (!is_array($aAddOnOptions)) throw new \InvalidArgumentException('Addon options expects an array or a scalar value, "' . gettype($aAddOnOptions) . '" given');
+        if (empty($aAddOnOptions)) {
+            throw new InvalidArgumentException('Addon options are empty');
+        }
+        if ($aAddOnOptions instanceof ElementInterface) {
+            $aAddOnOptions = array('element' => $aAddOnOptions);
+        } elseif (is_scalar($aAddOnOptions)) {
+            $aAddOnOptions = array('text' => $aAddOnOptions);
+        } elseif (!is_array($aAddOnOptions)) {
+            throw new InvalidArgumentException(sprintf(
+                'Addon options expects an array or a scalar value, "%s" given',
+                is_object($aAddOnOptions) ? get_class($aAddOnOptions) : gettype($aAddOnOptions)
+            ));
+        }
 
         $sMarkup = '';
         $sAddonTagName = 'span';
         $sAddonClass = '';
         if (!empty($aAddOnOptions['text'])) {
             if (!is_scalar($aAddOnOptions['text'])) {
-                throw new \LogicException('"text" option expects a scalar value, "' . gettype($aAddOnOptions['text']) . '" given');
+                throw new InvalidArgumentException(sprintf(
+                    '"text" option expects a scalar value, "%s" given',
+                    is_object($aAddOnOptions['text']) ? get_class($aAddOnOptions['text']) : gettype($aAddOnOptions['text'])
+                ));
             } elseif (($oTranslator = $this->getTranslator())) {
                 $sMarkup .= $oTranslator->translate($aAddOnOptions['text'], $this->getTranslatorTextDomain());
             } else {
@@ -99,21 +163,27 @@ class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements
             }
             $sAddonClass .= ' input-group-addon';
         } elseif (!empty($aAddOnOptions['element'])) {
-            if (
-                is_array($aAddOnOptions['element'])
-                || ($aAddOnOptions['element'] instanceof \Traversable && !($aAddOnOptions['element'] instanceof \Zend\Form\ElementInterface))
+            if (is_array($aAddOnOptions['element']) ||
+                ($aAddOnOptions['element'] instanceof Traversable &&
+                !($aAddOnOptions['element'] instanceof ElementInterface))
             ) {
-                $oFactory = new \Zend\Form\Factory();
+                $oFactory = new Factory();
                 $aAddOnOptions['element'] = $oFactory->create($aAddOnOptions['element']);
-            } elseif (!($aAddOnOptions['element'] instanceof \Zend\Form\ElementInterface)) {
-                throw new \LogicException(sprintf(
-                    '"element" option expects an instanceof \Zend\Form\ElementInterface, "%s" given', is_object($aAddOnOptions['element']) ? get_class($aAddOnOptions['element']) : gettype($aAddOnOptions['element'])
+            } elseif (!($aAddOnOptions['element'] instanceof ElementInterface)) {
+                throw new LogicException(sprintf(
+                    '"element" option expects an instanceof Zend\Form\ElementInterface, "%s" given',
+                    is_object($aAddOnOptions['element']) ? get_class($aAddOnOptions['element']) : gettype($aAddOnOptions['element'])
                 ));
             }
-            $aAddOnOptions['element']->setOptions(array_merge($aAddOnOptions['element']->getOptions(), array('disable-twb' => true)));
+            
+            $aAddOnOptions['element']->setOptions(array_merge(
+                $aAddOnOptions['element']->getOptions(),
+                array('disable-twb' => true)
+            ));
+            
             $sMarkup .= $this->render($aAddOnOptions['element']);
 
-            if($aAddOnOptions['element'] instanceof \Zend\Form\Element\Button) {
+            if ($aAddOnOptions['element'] instanceof Button) {
                 $sAddonClass .= ' input-group-btn';
                 //Element contains dropdown, so add-on container must be a "div"
                 if ($aAddOnOptions['element']->getOption('dropdown')) {
@@ -129,22 +199,24 @@ class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements
 
     /**
      * Sets translator to use in helper
-     * @see \Zend\I18n\Translator\TranslatorAwareInterface::setTranslator()
-     * @param \Zend\I18n\Translator\Translator $oTranslator : [optional] translator. Default is null, which sets no translator.
+     * @see TranslatorAwareInterface::setTranslator()
+     * @param TranslatorInterface $oTranslator : [optional] translator. Default is null, which sets no translator.
      * @param string $sTextDomain : [optional] text domain Default is null, which skips setTranslatorTextDomain
-     * @return \TwbBundle\Form\View\Helper\TwbBundleFormElement
+     * @return TwbBundleFormElement
      */
-    public function setTranslator(\Zend\I18n\Translator\TranslatorInterface $oTranslator = null, $sTextDomain = null)
+    public function setTranslator(TranslatorInterface $oTranslator = null, $sTextDomain = null)
     {
         $this->translator = $oTranslator;
-        if (null !== $sTextDomain) $this->setTranslatorTextDomain($sTextDomain);
+        if (null !== $sTextDomain) {
+            $this->setTranslatorTextDomain($sTextDomain);
+        }
         return $this;
     }
 
     /**
      * Returns translator used in helper
-     * @see \Zend\I18n\Translator\TranslatorAwareInterface::getTranslator()
-     * @return null|\Zend\I18n\Translator\Translator
+     * @see TranslatorAwareInterface::getTranslator()
+     * @return null|TranslatorInterface
      */
     public function getTranslator()
     {
@@ -153,7 +225,7 @@ class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements
 
     /**
      * Checks if the helper has a translator
-     * @see \Zend\I18n\Translator\TranslatorAwareInterface::hasTranslator()
+     * @see TranslatorAwareInterface::hasTranslator()
      * @return boolean
      */
     public function hasTranslator()
@@ -163,9 +235,9 @@ class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements
 
     /**
      * Sets whether translator is enabled and should be used
-     * @see \Zend\I18n\Translator\TranslatorAwareInterface::setTranslatorEnabled()
+     * @see TranslatorAwareInterface::setTranslatorEnabled()
      * @param boolean $bEnabled
-     * @return \TwbBundle\Form\View\Helper\TwbBundleFormElement
+     * @return TwbBundleFormElement
      */
     public function setTranslatorEnabled($bEnabled = true)
     {
@@ -175,7 +247,7 @@ class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements
 
     /**
      * Returns whether translator is enabled and should be used
-     * @see \Zend\I18n\Translator\TranslatorAwareInterface::isTranslatorEnabled()
+     * @see TranslatorAwareInterface::isTranslatorEnabled()
      * @return boolean
      */
     public function isTranslatorEnabled()
@@ -185,9 +257,9 @@ class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements
 
     /**
      * Set translation text domain
-     * @see \Zend\I18n\Translator\TranslatorAwareInterface::setTranslatorTextDomain()
+     * @see TranslatorAwareInterface::setTranslatorTextDomain()
      * @param string $sTextDomain
-     * @return \TwbBundle\Form\View\Helper\TwbBundleFormElement
+     * @return TwbBundleFormElement
      */
     public function setTranslatorTextDomain($sTextDomain = 'default')
     {
@@ -197,7 +269,7 @@ class TwbBundleFormElement extends \Zend\Form\View\Helper\FormElement implements
 
     /**
      * Return the translation text domain
-     * @see \Zend\I18n\Translator\TranslatorAwareInterface::getTranslatorTextDomain()
+     * @see TranslatorAwareInterface::getTranslatorTextDomain()
      * @return string
      */
     public function getTranslatorTextDomain()

@@ -1,21 +1,32 @@
 <?php
+
 namespace TwbBundle\Form\View\Helper;
-class TwbBundleFormMultiCheckbox extends \Zend\Form\View\Helper\FormMultiCheckbox{
-	/**
-	 * @see \Zend\Form\View\Helper\FormMultiCheckbox::render()
-	 * @param \Zend\Form\ElementInterface $oElement
-	 * @return string
-	 */
-	public function render(\Zend\Form\ElementInterface $oElement){
 
-		$aElementOptions  = $oElement->getOptions();
-		$sCheckboxClass = isset($aElementOptions['inline']) && $aElementOptions['inline'] == false?'checkbox':'checkbox-inline';
+use Zend\Form\View\Helper\FormMultiCheckbox;
+use Zend\Form\ElementInterface;
 
-	    $aLabelAttributes = $oElement->getLabelAttributes();
-		if(empty($aLabelAttributes['class']))$aLabelAttributes['class'] = $sCheckboxClass;
-		elseif(!preg_match('/(\s|^)'.$sCheckboxClass.'(\s|$)/',$aLabelAttributes['class']))$aLabelAttributes['class'] .= ' '.$sCheckboxClass;
-		$oElement->setLabelAttributes($aLabelAttributes);
+class TwbBundleFormMultiCheckbox extends FormMultiCheckbox
+{
+    /**
+     * @see FormMultiCheckbox::render()
+     * @param ElementInterface $oElement
+     * @return string
+     */
+    public function render(ElementInterface $oElement)
+    {
+        $aElementOptions = $oElement->getOptions();
 
-		return parent::render($oElement);
-	}
+        // For inline multi-checkbox
+        if (isset($aElementOptions['inline']) && $aElementOptions['inline'] == true) {
+            $this->setSeparator('');
+            $oElement->setLabelAttributes(array('class' => 'checkbox-inline'));
+
+            return sprintf('%s', parent::render($oElement));
+        }
+
+        $this->setSeparator('</div><div class="checkbox">');
+        $oElement->setLabelAttributes(array('class' => 'checkbox'));
+
+        return sprintf('<div class="checkbox">%s</div>', parent::render($oElement));
+    }
 }
