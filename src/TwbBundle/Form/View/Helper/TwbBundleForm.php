@@ -104,6 +104,7 @@ class TwbBundleForm extends Form
         // Prepare options
         foreach ($oForm as $iKey => $oElement) {
             $aOptions = $oElement->getOptions();
+			$aElementsRendering[$iKey] = '';
 			if (isset($aOptions['twb-row-open']) && $aOptions['twb-row-open']) {
 			    $sFormContent .= '<div class="row">';
 			    $rowsOpened++;
@@ -116,24 +117,26 @@ class TwbBundleForm extends Form
                 $aOptions['twb-layout'] = $sFormLayout;
                 $oElement->setOptions($aOptions);
             }
-			if (isset($aOptions['twb-row-close']) && $aOptions['twb-row-close']) {
-			    $sFormContent .= '</div>';
-			    $rowsOpened--;
-			}
+
             // Manage button group option
             if (array_key_exists('button-group', $aOptions)) {
                 $sButtonGroupKey = $aOptions['button-group'];
                 if (isset($aButtonGroups[$sButtonGroupKey])) {
                     $aButtonGroups[$sButtonGroupKey][] = $oElement;
-                    $aElementsRendering[$iKey] = $sButtonGroupKey;
+                    $aElementsRendering[$iKey] .= $sButtonGroupKey;
                 } else {
                     $aButtonGroups[$sButtonGroupKey] = array($oElement);
                 }
             } elseif ($oElement instanceof FieldsetInterface) {
-                $aElementsRendering[$iKey] = $oFormCollectionHelper->__invoke($oElement);
+                $aElementsRendering[$iKey] .= $oFormCollectionHelper->__invoke($oElement);
             } else {
-                $aElementsRendering[$iKey] = $oFormRowHelper->__invoke($oElement);
+                $aElementsRendering[$iKey] .= $oFormRowHelper->__invoke($oElement);
             }
+
+			if (isset($aOptions['twb-row-close']) && $aOptions['twb-row-close']) {
+			    $aElementsRendering[$iKey] .= '</div>';
+			    $rowsOpened--;
+			}
         }
 
         // Assemble elements rendering
