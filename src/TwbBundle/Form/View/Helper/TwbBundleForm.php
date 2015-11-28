@@ -1,36 +1,28 @@
 <?php
-
 namespace TwbBundle\Form\View\Helper;
-
 use Zend\Form\View\Helper\Form;
 use Zend\Form\FormInterface;
 use Zend\Form\FieldsetInterface;
-
 class TwbBundleForm extends Form
 {
-
     /**
      * @var string
      */
     const LAYOUT_HORIZONTAL = 'horizontal';
-
     /**
      * @var string
      */
     const LAYOUT_INLINE = 'inline';
-
     /**
      * @var string
      */
     private static $formRowFormat = '<div class="row">%s</div>';
-
     /**
      * Form layout (see LAYOUT_* consts)
      *
      * @var string
      */
     protected $formLayout = null;
-
     /**
      * @see Form::__invoke()
      * @param FormInterface $oForm
@@ -45,7 +37,6 @@ class TwbBundleForm extends Form
         $this->formLayout = $sFormLayout;
         return $this;
     }
-
     /**
      * Render a form from the provided $oForm,
      * @see Form::render()
@@ -59,17 +50,13 @@ class TwbBundleForm extends Form
         if (method_exists($oForm, 'prepare')) {
             $oForm->prepare();
         }
-
         $this->setFormClass($oForm, $sFormLayout);
-
         //Set form role
         if (!$oForm->getAttribute('role')) {
             $oForm->setAttribute('role', 'form');
         }
-
         return $this->openTag($oForm) . PHP_EOL . $this->renderElements($oForm, $sFormLayout) . $this->closeTag();
     }
-
     /**
      * @param FormInterface $oForm
      * @param string|null $sFormLayout
@@ -79,25 +66,18 @@ class TwbBundleForm extends Form
     {
         // Store button groups
         $aButtonGroups = array();
-
         // Store elements rendering
         $aElementsRendering = array();
-
         // Retrieve view helper plugin manager
         $oHelperPluginManager = $this->getView()->getHelperPluginManager();
-
         // Retrieve form row helper
         $oFormRowHelper = $oHelperPluginManager->get('formRow');
-
         // Retrieve form collection helper
         $oFormCollectionHelper = $oHelperPluginManager->get('formCollection');
-
         // Retrieve button group helper
         $oButtonGroupHelper = $oHelperPluginManager->get('buttonGroup');
-
         // Store column size option
         $bHasColumnSize = false;
-
         // Prepare options
         foreach ($oForm as $iKey => $oElement) {
             $aOptions = $oElement->getOptions();
@@ -109,7 +89,6 @@ class TwbBundleForm extends Form
                 $aOptions['twb-layout'] = $sFormLayout;
                 $oElement->setOptions($aOptions);
             }
-
             // Manage button group option
             if (array_key_exists('button-group', $aOptions)) {
                 $sButtonGroupKey = $aOptions['button-group'];
@@ -125,27 +104,23 @@ class TwbBundleForm extends Form
                 $aElementsRendering[$iKey] = $oFormRowHelper->__invoke($oElement);
             }
         }
-
         // Assemble elements rendering
         $sFormContent = '';
         foreach ($aElementsRendering as $sElementRendering) {
             // Check if element rendering is a button group key
             if (isset($aButtonGroups[$sElementRendering])) {
                 $aButtons = $aButtonGroups[$sElementRendering];
-
                 // Render button group content
                 $sFormContent .= $oFormRowHelper->renderElementFormGroup($oButtonGroupHelper($aButtons), $oFormRowHelper->getRowClassFromElement(current($aButtons)));
             } else {
                 $sFormContent .= $sElementRendering;
             }
         }
-
         if ($bHasColumnSize && $sFormLayout !== self::LAYOUT_HORIZONTAL) {
             $sFormContent = sprintf(self::$formRowFormat, $sFormContent);
         }
         return $sFormContent;
     }
-
     /**
      * Sets form layout class
      * @param FormInterface $oForm
@@ -166,7 +141,6 @@ class TwbBundleForm extends Form
         }
         return $this;
     }
-
     /**
      * Generate an opening form tag
      * @param null|FormInterface $form
