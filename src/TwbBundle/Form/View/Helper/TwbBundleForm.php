@@ -106,7 +106,7 @@ class TwbBundleForm extends Form
             $aOptions = $oElement->getOptions();
 			$aElementsRendering[$iKey] = '';
 			if (isset($aOptions['twb-row-open']) && $aOptions['twb-row-open']) {
-			    $sFormContent .= '<div class="row">';
+			    $aElementsRendering[$iKey] .= '<div class="row">';
 			    $rowsOpened++;
 			}
             if (!$bHasColumnSize && !empty($aOptions['column-size']) && $rowsOpened === 0) {
