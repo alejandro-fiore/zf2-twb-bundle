@@ -52,7 +52,7 @@ class TwbBundleFormErrors extends AbstractHelper
         foreach ($oForm->getMessages() as $fieldName => $sMessages) {
             foreach ($sMessages as $sMessage) {
                 $fMessage = $sMessage;
-                if (is_array($sMessage) {
+                if (is_array($sMessage)) {
                     $fMessage = implode('<br/>', $sMessage);
                 }
                 if ($oForm->get($fieldName)->getAttribute('id')) {
